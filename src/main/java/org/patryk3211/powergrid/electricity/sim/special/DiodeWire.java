@@ -45,20 +45,9 @@ public class DiodeWire extends DynamicConductanceWire {
     @Override
     public double calculateConductance() {
         double V = super.potentialDifference();
-        V = PNJunction.pnlim(V, prevPotential);
 
-        var I = PNJunction.gm(V, 1, biasVoltage);// * (V - biasVoltage);
-        var dV = V - prevPotential;
-        double G;
-        if(Math.abs(dV) > 1e-5) {
-            G = (I - prevCurrent) / dV;
-        } else {
-            G = currentConductance;
-        }
-        In = I - G * biasVoltage;
-        prevCurrent = I;
-        prevPotential = V;
-        return G + 1e-6;
+        var gm = PNJunction.gm(V);
+        return StrictMath.max(gm, 1e-9);
     }
 
     @Override

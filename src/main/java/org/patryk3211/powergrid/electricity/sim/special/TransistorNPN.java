@@ -63,8 +63,8 @@ public class TransistorNPN extends DynamicConductanceWire {
     @Override
     protected double calculateConductance() {
         // Forward mode
-        double V_BE = beJunction.getLimitedPotential();
-        var Ie = PNJunction.gm(V_BE, 1, bias);
+        double V_BE = beJunction.potentialDifference();
+        var Ie = PNJunction.gm(V_BE);
         double Ge;
         if(Math.abs(beJunction.dV) > 1e-5) {
             Ge = (Ie - prevIe) / beJunction.dV;
@@ -76,8 +76,8 @@ public class TransistorNPN extends DynamicConductanceWire {
         beJunction.updateConductance(Ge + 1e-6);
 
         // Reverse mode
-        double V_BC = bcJunction.getLimitedPotential();
-        var Ic = PNJunction.gm(V_BC, 1, bias);
+        double V_BC = bcJunction.potentialDifference();
+        var Ic = PNJunction.gm(V_BC);
         double Gc;
         if(Math.abs(bcJunction.dV) > 1e-5) {
             Gc = (Ic - prevIc) / bcJunction.dV;

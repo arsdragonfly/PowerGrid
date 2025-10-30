@@ -19,34 +19,47 @@ import org.patryk3211.powergrid.electricity.sim.AbstractElectricWire;
 import org.patryk3211.powergrid.electricity.sim.node.IElectricNode;
 
 class PNJunction extends AbstractElectricWire {
-    public static final double V_T = 0.05;
+    public static final double V_T = 0.0257; // thermal voltage at 25C
+    public static final double I_s = 1e-5; // reverse saturation current
+    public static final double R_s = 1.0; // series resistance
+
     private double currentConductance;
-    private double prevV;
     public double dV;
 
     public PNJunction(IElectricNode p, IElectricNode n) {
         super(p, n);
     }
 
-    public static double pnlim(double V, double Vprev) {
-        double step;
-        var diff = V - Vprev;
-        if(Math.abs(diff) > 0.8) {
-            step = 0.02f;
-            if(V < Vprev)
-                step *= -1;
-        } else {
-            step = diff * 0.02f;
-            //0.01f;
+    /**
+     * Lambert W(z) function - Series approximation
+     * ref: implemented from Python code found somewhere in the web
+     * @param z
+     * @return
+     */
+    public static double LambertW(double z)
+    {
+        double PRECISION = 1E-12;
+        double S = 0.0;
+        for (int n=1; n <= 100; n++)
+        {
+            double Se = S * StrictMath.pow(StrictMath.E, S);
+            double S1e = (S+1) *
+                    StrictMath.pow(StrictMath.E, S);
+            if (PRECISION > StrictMath.abs((z-Se)/S1e))
+            {
+                return S;
+            }
+            S -=
+                    (Se-z) / (S1e - (S+2) * (Se-z) / (2*S+2));
         }
-        if(step == 0)
-            return V;
-        V = (float) (Vprev + step * Math.log10(1 + diff / step));
-        return V;
+        return S;
     }
 
-    public static double gm(double V, double G_max, double V_bias) {
-        return 0.5 * (Math.tanh((V - V_bias - 0.3) / (2 * V_T)) + 1) * G_max;
+    public static double gm(double V) {
+        // take derivative of Banwell and Jayakumar (2000)
+        double IsRs = I_s * R_s;
+        double WTerm = LambertW((IsRs + StrictMath.exp((IsRs + V) / V_T )) / V_T);
+        return WTerm / (R_s * (WTerm + 1));
     }
 
     public void updateConductance(double newConductance) {
@@ -57,13 +70,5 @@ class PNJunction extends AbstractElectricWire {
     @Override
     public double conductance() {
         return currentConductance;
-    }
-
-    // This should be called once per iteration for correct smoothing.
-    public double getLimitedPotential() {
-        var V = pnlim(potentialDifference(), prevV);
-        dV = V - prevV;
-        prevV = V;
-        return V;
     }
 }
